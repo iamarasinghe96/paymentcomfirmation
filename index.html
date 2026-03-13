@@ -358,12 +358,11 @@
         </div>
       </div>
       <div class="field-row">
-        <label>Meal Preference</label>
-        <select id="f_meal" onchange="updateReceipt()">
-          <option value="">Select preference</option>
-          <option value="1 Vegetarian">1 Vegetarian</option>
-          <option value="2 Chicken">2 Chicken</option>
-        </select>
+        <label>Meal Preference (Vegetarian / Chicken)</label>
+        <div class="pax-row">
+          <input type="number" id="f_meal_veg" placeholder="Vegetarian" min="0" value="0" oninput="updateReceipt()">
+          <input type="number" id="f_meal_chicken" placeholder="Chicken" min="0" value="0" oninput="updateReceipt()">
+        </div>
       </div>
       <div class="field-row">
         <label>Remark / Reference</label>
@@ -615,7 +614,12 @@ function updateReceipt() {
   document.getElementById('rv_name').textContent = document.getElementById('f_name').value || '';
   document.getElementById('rv_contact').textContent = document.getElementById('f_contact').value || '';
   document.getElementById('rv_pax').textContent = getPaxString();
-  document.getElementById('rv_meal').textContent = document.getElementById('f_meal').value || '';
+  const mealVeg     = parseInt(document.getElementById('f_meal_veg').value) || 0;
+  const mealChicken = parseInt(document.getElementById('f_meal_chicken').value) || 0;
+  const mealParts   = [];
+  if (mealVeg > 0)     mealParts.push(`${mealVeg} Vegetarian`);
+  if (mealChicken > 0) mealParts.push(`${mealChicken} Chicken`);
+  document.getElementById('rv_meal').textContent = mealParts.join(', ') || '';
   document.getElementById('rv_remark').textContent = document.getElementById('f_remark').value || '';
   document.getElementById('rv_status').textContent = document.getElementById('f_status').value || '';
   const amtVal = document.getElementById('f_amount').value;
