@@ -266,8 +266,9 @@
 
   .receipt-body {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr auto;
     gap: 0;
+    align-items: start;
   }
 
   .receipt-fields {
@@ -297,9 +298,10 @@
 
   .receipt-qr {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    padding-left: 16px;
+    padding-left: 12px;
+    padding-top: 4px;
   }
 
   #qr-placeholder {
@@ -341,11 +343,11 @@
     <div class="fields-grid">
       <div class="field-row">
         <label>Name</label>
-        <input type="text" id="f_name" placeholder="Mr. Ravi Herath" oninput="updateReceipt()">
+        <input type="text" id="f_name" placeholder="" oninput="updateReceipt()">
       </div>
       <div class="field-row">
         <label>Contact</label>
-        <input type="text" id="f_contact" placeholder="61408496637" oninput="updateReceipt()">
+        <input type="text" id="f_contact" placeholder="" oninput="updateReceipt()">
       </div>
       <div class="field-row">
         <label>Pax (Adults / Children 12+ / Children under 12)</label>
@@ -356,8 +358,16 @@
         </div>
       </div>
       <div class="field-row">
+        <label>Meal Preference</label>
+        <select id="f_meal" onchange="updateReceipt()">
+          <option value="">Select preference</option>
+          <option value="Vegetarian">Vegetarian</option>
+          <option value="Meat">Meat</option>
+        </select>
+      </div>
+      <div class="field-row">
         <label>Remark / Reference</label>
-        <input type="text" id="f_remark" placeholder="N631365420050" oninput="updateReceipt()">
+        <input type="text" id="f_remark" placeholder="" oninput="updateReceipt()">
       </div>
       <div class="field-row">
         <label>Status</label>
@@ -369,11 +379,11 @@
       </div>
       <div class="field-row">
         <label>Amount ($)</label>
-        <input type="text" id="f_amount" placeholder="75" oninput="updateReceipt()">
+        <input type="text" id="f_amount" placeholder="" oninput="updateReceipt()">
       </div>
       <div class="field-row">
         <label>Payment Date</label>
-        <input type="text" id="f_date" placeholder="3/13/2026 11:15" oninput="updateReceipt()">
+        <input type="text" id="f_date" placeholder="" oninput="updateReceipt()">
       </div>
     </div>
 
@@ -404,6 +414,7 @@
           <div class="receipt-row"><span class="r-label">Name</span><span class="r-value" id="rv_name"></span></div>
           <div class="receipt-row"><span class="r-label">Contact</span><span class="r-value" id="rv_contact"></span></div>
           <div class="receipt-row"><span class="r-label">Pax</span><span class="r-value" id="rv_pax"></span></div>
+          <div class="receipt-row"><span class="r-label">Meal</span><span class="r-value" id="rv_meal"></span></div>
           <div class="receipt-row"><span class="r-label">Remark</span><span class="r-value" id="rv_remark"></span></div>
           <div class="receipt-row"><span class="r-label">Status</span><span class="r-value" id="rv_status"></span></div>
           <div class="receipt-row"><span class="r-label">Amount</span><span class="r-value" id="rv_amount"></span></div>
@@ -604,9 +615,11 @@ function updateReceipt() {
   document.getElementById('rv_name').textContent = document.getElementById('f_name').value || '';
   document.getElementById('rv_contact').textContent = document.getElementById('f_contact').value || '';
   document.getElementById('rv_pax').textContent = getPaxString();
+  document.getElementById('rv_meal').textContent = document.getElementById('f_meal').value || '';
   document.getElementById('rv_remark').textContent = document.getElementById('f_remark').value || '';
   document.getElementById('rv_status').textContent = document.getElementById('f_status').value || '';
-  document.getElementById('rv_amount').textContent = document.getElementById('f_amount').value || '';
+  const amtVal = document.getElementById('f_amount').value;
+  document.getElementById('rv_amount').textContent = amtVal ? '$' + amtVal : '';
   document.getElementById('rv_date').textContent = document.getElementById('f_date').value || '';
 }
 
