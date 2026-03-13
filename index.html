@@ -306,6 +306,10 @@
     line-height: 1.4;
   }
 
+  .receipt-top-fields {
+    width: 100%;
+  }
+
   .receipt-body {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -322,6 +326,10 @@
     border-bottom: 1px solid #f0ebe0;
     padding: 7px 0;
     align-items: center;
+  }
+
+  .receipt-row-full {
+    grid-template-columns: 120px 1fr;
   }
 
   .receipt-row:last-child { border-bottom: none; }
@@ -448,13 +456,15 @@
         <div class="receipt-title">Albury Wodonga<br>අවුරුදු උළෙල 2026<br>Payment Confirmation</div>
       </div>
 
+      <div class="receipt-top-fields">
+        <div class="receipt-row receipt-row-full"><span class="r-label">Name</span><span class="r-value" id="rv_name"></span></div>
+        <div class="receipt-row receipt-row-full"><span class="r-label">Contact</span><span class="r-value" id="rv_contact"></span></div>
+        <div class="receipt-row receipt-row-full"><span class="r-label">Pax</span><span class="r-value" id="rv_pax"></span></div>
+        <div class="receipt-row receipt-row-full"><span class="r-label">Meal</span><span class="r-value" id="rv_meal"></span></div>
+        <div class="receipt-row receipt-row-full"><span class="r-label">Remark</span><span class="r-value" id="rv_remark"></span></div>
+      </div>
       <div class="receipt-body">
         <div class="receipt-fields">
-          <div class="receipt-row"><span class="r-label">Name</span><span class="r-value" id="rv_name"></span></div>
-          <div class="receipt-row"><span class="r-label">Contact</span><span class="r-value" id="rv_contact"></span></div>
-          <div class="receipt-row"><span class="r-label">Pax</span><span class="r-value" id="rv_pax"></span></div>
-          <div class="receipt-row"><span class="r-label">Meal</span><span class="r-value" id="rv_meal"></span></div>
-          <div class="receipt-row"><span class="r-label">Remark</span><span class="r-value" id="rv_remark"></span></div>
           <div class="receipt-row"><span class="r-label">Status</span><span class="r-value" id="rv_status"></span></div>
           <div class="receipt-row"><span class="r-label">Amount</span><span class="r-value" id="rv_amount"></span></div>
           <div class="receipt-row"><span class="r-label">Payment Date</span><span class="r-value" id="rv_date"></span></div>
