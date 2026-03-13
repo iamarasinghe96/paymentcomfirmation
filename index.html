@@ -776,7 +776,6 @@ async function saveSheetOnly() {
 
 function saveToGallery() {
   showStatus('⏳ Generating image...', 'info');
-  saveToSheet();
   navigator.clipboard.writeText(getThankYouMessage()).catch(() => {});
   renderReceiptCanvas().then(canvas => {
     canvas.toBlob(async blob => {
