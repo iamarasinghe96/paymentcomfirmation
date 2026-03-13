@@ -684,7 +684,11 @@ async function saveToSheet() {
       amount  : document.getElementById('f_amount').value,
       date    : document.getElementById('f_date').value,
     };
-    await fetch(SHEETS_URL, { method: 'POST', body: JSON.stringify(body) });
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify(body)
+    });
   } catch (e) { /* silent — sheet save failure shouldn't block PNG save */ }
 }
 
