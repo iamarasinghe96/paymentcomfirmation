@@ -661,6 +661,8 @@ function getPaxString() {
 }
 
 function updateReceipt() {
+  const contactEl = document.getElementById('f_contact');
+  contactEl.value = contactEl.value.replace(/\s+/g, '');
   document.getElementById('rv_name').textContent = document.getElementById('f_name').value || '';
   document.getElementById('rv_contact').textContent = document.getElementById('f_contact').value || '';
   document.getElementById('rv_pax').textContent = getPaxString();
