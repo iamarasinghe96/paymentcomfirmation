@@ -778,27 +778,27 @@ function saveToGallery() {
   showStatus('⏳ Generating image...', 'info');
   saveToSheet();
   renderReceiptCanvas().then(canvas => {
-    // On mobile: <a download> triggers Save to Files/Photos prompt
-    // On desktop: saves to Downloads folder
-    const link = document.createElement('a');
-    link.download = getFilename() + '.png';
-    link.href = canvas.toDataURL('image/png');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // Also try Web Share API on mobile (iOS Safari needs this for true gallery save)
     canvas.toBlob(async blob => {
       const file = new File([blob], getFilename() + '.png', { type: 'image/png' });
+      // On iOS/Android: open native share sheet (includes "Save Image" / "Save to Gallery")
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], title: 'Payment Confirmation' });
-          showStatus('✅ Image saved! Choose "Save Image" to add it to your gallery.', 'success');
+          showStatus('✅ Choose "Save Image" in the share panel to save to your gallery.', 'success');
         } catch (e) {
-          showStatus('✅ Image downloaded — open it and tap "Save to Photos" to add to gallery.', 'success');
+          if (e.name !== 'AbortError') {
+            showStatus('✅ Share cancelled — tap Save again to retry.', 'info');
+          }
         }
       } else {
-        showStatus('✅ Image downloaded to your device gallery / Downloads folder.', 'success');
+        // Desktop fallback: direct download
+        const link = document.createElement('a');
+        link.download = getFilename() + '.png';
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showStatus('✅ Image downloaded to your Downloads folder.', 'success');
       }
     }, 'image/png');
   }).catch(err => {
