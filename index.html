@@ -54,7 +54,53 @@
   }
 
   @media (max-width: 768px) {
-    .tool-container { grid-template-columns: 1fr; }
+    body { padding: 12px; }
+
+    .app-header { margin-bottom: 16px; }
+    .app-header h1 { font-size: 1.2rem; letter-spacing: 0.5px; }
+
+    .tool-container { grid-template-columns: 1fr; gap: 16px; }
+
+    .input-panel, .preview-panel { padding: 16px; border-radius: 12px; }
+
+    /* Prevent iOS auto-zoom on input focus */
+    .field-row input, .field-row select, .paste-area {
+      font-size: 16px;
+    }
+
+    /* Larger touch targets for buttons */
+    .parse-btn, .btn-generate, .btn-save, .btn-whatsapp {
+      padding: 14px;
+      font-size: 0.9rem;
+      min-height: 48px;
+    }
+
+    /* Pax (3 inputs) → 2 columns on small screens */
+    .pax-row:not(.meal-row) { grid-template-columns: 1fr 1fr; }
+    /* Meal row already 2 columns — stays as-is */
+    .meal-row { grid-template-columns: 1fr 1fr; }
+
+    /* Receipt adjusts: stack fields full-width, QR below */
+    .receipt-body {
+      grid-template-columns: 1fr;
+    }
+    .receipt-qr {
+      justify-content: flex-end;
+      padding-left: 0;
+      padding-top: 12px;
+    }
+
+    /* Receipt row label slightly narrower */
+    .receipt-row { grid-template-columns: 100px 1fr; }
+
+    .receipt-title { font-size: 0.95rem; }
+  }
+
+  @media (max-width: 400px) {
+    .app-header h1 { font-size: 1rem; }
+    .receipt-title { font-size: 0.85rem; }
+    .receipt-header img { width: 60px; height: 60px; }
+    .receipt-row { grid-template-columns: 90px 1fr; }
   }
 
   /* LEFT PANEL - Input */
@@ -357,7 +403,7 @@
       </div>
       <div class="field-row">
         <label>Meal Preference (Vegetarian / Chicken)</label>
-        <div class="pax-row">
+        <div class="pax-row meal-row">
           <input type="number" id="f_meal_veg" placeholder="Vegetarian" min="0" value="0" oninput="updateReceipt()">
           <input type="number" id="f_meal_chicken" placeholder="Chicken" min="0" value="0" oninput="updateReceipt()">
         </div>
