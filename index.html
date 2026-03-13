@@ -725,7 +725,7 @@ async function saveToSheet() {
   try {
     const body = {
       name    : document.getElementById('f_name').value,
-      contact : document.getElementById('f_contact').value,
+      contact : document.getElementById('f_contact').value.replace(/\s+/g, ''),
       adults  : document.getElementById('f_adults').value,
       kids12  : document.getElementById('f_kids12').value,
       kidsU12 : document.getElementById('f_kidsU12').value,
