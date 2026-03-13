@@ -777,6 +777,7 @@ async function saveSheetOnly() {
 function saveToGallery() {
   showStatus('⏳ Generating image...', 'info');
   saveToSheet();
+  navigator.clipboard.writeText(getThankYouMessage()).catch(() => {});
   renderReceiptCanvas().then(canvas => {
     canvas.toBlob(async blob => {
       const file = new File([blob], getFilename() + '.png', { type: 'image/png' });
@@ -806,13 +807,17 @@ function saveToGallery() {
   });
 }
 
+function getThankYouMessage() {
+  const name = document.getElementById('f_name').value.trim();
+  return `Thank you for the payment${name ? ' ' + name : ''}! 🙏\nLet me know if there's any changes to the meal plan. 4 වෙනිදා හම්බෙමු! 🎉🪷`;
+}
+
 function sendToWhatsApp() {
   const contact = document.getElementById('f_contact').value.trim();
   if (!contact) { showStatus('Please enter a contact number first.', 'error'); return; }
 
   const waNumber = contact.replace(/\D/g, '');
-  const name = document.getElementById('f_name').value.trim();
-  const msg = encodeURIComponent(`Thank you for the payment${name ? ' ' + name : ''}! 🙏\nLet me know if there's any changes to the meal plan. 4 වෙනිදා හම්බෙමු! 🎉🪷`);
+  const msg = encodeURIComponent(getThankYouMessage());
   const waUrl = `https://wa.me/${waNumber}?text=${msg}`;
   window.open(waUrl, '_blank');
   showStatus('✅ WhatsApp opened! Save the PNG first, then attach it from your gallery.', 'info');
