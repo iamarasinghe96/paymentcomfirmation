@@ -729,7 +729,8 @@ function sendToWhatsApp() {
   if (!contact) { showStatus('Please enter a contact number first.', 'error'); return; }
 
   const waNumber = contact.replace(/\D/g, '');
-  const msg = encodeURIComponent("Please keep this receipt saved, and let me know if there's any changes to the meal plan 🎉🪷");
+  const name = document.getElementById('f_name').value.trim();
+  const msg = encodeURIComponent(`Thank you for the payment${name ? ' ' + name : ''}! 🙏\nPlease keep this receipt saved, and let me know if there's any changes to the meal plan 🎉🪷`);
   const waUrl = `https://wa.me/${waNumber}?text=${msg}`;
   window.open(waUrl, '_blank');
   showStatus('✅ WhatsApp opened! Save the PNG first, then attach it from your gallery.', 'info');
