@@ -361,8 +361,8 @@
         <label>Meal Preference</label>
         <select id="f_meal" onchange="updateReceipt()">
           <option value="">Select preference</option>
-          <option value="Vegetarian">Vegetarian</option>
-          <option value="Meat">Meat</option>
+          <option value="1 Vegetarian">1 Vegetarian</option>
+          <option value="2 Chicken">2 Chicken</option>
         </select>
       </div>
       <div class="field-row">
@@ -703,7 +703,7 @@ function sendToWhatsApp() {
   if (!contact) { showStatus('Please enter a contact number first.', 'error'); return; }
 
   const waNumber = contact.replace(/\D/g, '');
-  const msg = encodeURIComponent("Please keep this receipt saved on the day of the event to show to get your dinner 🎉🪷");
+  const msg = encodeURIComponent("Please keep this receipt saved, and let me know if there's any changes to the meal plan 🎉🪷");
   const waUrl = `https://wa.me/${waNumber}?text=${msg}`;
   window.open(waUrl, '_blank');
   showStatus('✅ WhatsApp opened! Save the PNG first, then attach it from your gallery.', 'info');
