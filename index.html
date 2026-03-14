@@ -385,6 +385,99 @@
     border-radius: 4px;
   }
 
+  /* Search section */
+  .search-section {
+    max-width: 900px;
+    margin: 24px auto 0;
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid rgba(201,148,43,0.2);
+  }
+
+  .search-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .search-row input {
+    flex: 1;
+    padding: 9px 12px;
+    border: 1.5px solid #e0d5c5;
+    border-radius: 7px;
+    font-family: 'Lato', sans-serif;
+    font-size: 16px;
+    color: #333;
+    background: #fdfaf4;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .search-row input:focus { border-color: var(--gold); background: white; }
+
+  .btn-search {
+    padding: 9px 18px;
+    background: linear-gradient(135deg, var(--maroon), #a52038);
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+
+  .btn-search:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139,26,46,0.3); }
+
+  .search-results {
+    margin-top: 16px;
+  }
+
+  .search-results table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+
+  .search-results th {
+    background: var(--maroon);
+    color: white;
+    padding: 7px 10px;
+    text-align: left;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  .search-results td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #f0ebe0;
+    color: #333;
+  }
+
+  .search-results tr:last-child td { border-bottom: none; }
+  .search-results tr:nth-child(even) td { background: #fdfaf4; }
+
+  .search-status {
+    font-size: 0.78rem;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 8px;
+  }
+
+  .search-status.success { background: #e8f5e9; color: #2e7d32; }
+  .search-status.error   { background: #fce4ec; color: #c62828; }
+  .search-status.info    { background: #e3f2fd; color: #1565c0; }
+
+  @media (max-width: 768px) {
+    .search-section { margin-top: 16px; padding: 16px; border-radius: 12px; }
+    .search-results { overflow-x: auto; }
+  }
+
 </style>
 </head>
 <body>
@@ -493,6 +586,17 @@
     </div>
   </div>
 
+</div>
+
+<!-- Search by contact -->
+<div class="search-section">
+  <div class="panel-title">🔍 Search Participants by Contact Number</div>
+  <div class="search-row">
+    <input type="tel" id="searchContact" placeholder="Enter contact number (e.g. 61412345678)" oninput="this.value=this.value.replace(/\s+/g,'').replace(/^\+/,'')">
+    <button class="btn-search" onclick="searchByContact()">Search</button>
+  </div>
+  <div id="searchStatusMsg" style="display:none;" class="search-status"></div>
+  <div class="search-results" id="searchResults"></div>
 </div>
 
 <script>
@@ -743,7 +847,7 @@ async function saveToSheet() {
   try {
     const body = {
       name    : document.getElementById('f_name').value,
-      contact : document.getElementById('f_contact').value.replace(/\s+/g, ''),
+      contact : document.getElementById('f_contact').value.replace(/\s+/g, '').replace(/^\+/, ''),
       adults  : document.getElementById('f_adults').value,
       kids12  : document.getElementById('f_kids12').value,
       kidsU12 : document.getElementById('f_kidsU12').value,
@@ -820,6 +924,50 @@ function sendToWhatsApp() {
   const waUrl = `https://wa.me/${waNumber}?text=${msg}`;
   window.open(waUrl, '_blank');
   showStatus('✅ WhatsApp opened! Save the PNG first, then attach it from your gallery.', 'info');
+}
+
+function showSearchStatus(msg, type) {
+  const el = document.getElementById('searchStatusMsg');
+  el.textContent = msg;
+  el.className = 'search-status ' + type;
+  el.style.display = 'block';
+}
+
+async function searchByContact() {
+  const raw = document.getElementById('searchContact').value.trim().replace(/\s+/g, '').replace(/^\+/, '');
+  if (!raw) { showSearchStatus('Please enter a contact number to search.', 'error'); return; }
+
+  showSearchStatus('⏳ Searching…', 'info');
+  document.getElementById('searchResults').innerHTML = '';
+
+  try {
+    const url = `${SHEETS_URL}?searchContact=${encodeURIComponent(raw)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data || data.error) {
+      showSearchStatus('❌ ' + (data && data.error ? data.error : 'No results found.'), 'error');
+      return;
+    }
+
+    const rows = Array.isArray(data) ? data : (data.rows || []);
+    if (rows.length === 0) {
+      showSearchStatus('⚠️ No participants found for that contact number.', 'info');
+      return;
+    }
+
+    showSearchStatus(`✅ Found ${rows.length} participant(s).`, 'success');
+
+    const cols = Object.keys(rows[0]);
+    let html = '<table><thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+    rows.forEach(row => {
+      html += '<tr>' + cols.map(c => `<td>${row[c] !== undefined ? row[c] : ''}</td>`).join('') + '</tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('searchResults').innerHTML = html;
+  } catch (e) {
+    showSearchStatus('❌ Could not reach the sheet. Please try again.', 'error');
+  }
 }
 </script>
 
