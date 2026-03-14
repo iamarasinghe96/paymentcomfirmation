@@ -887,7 +887,7 @@ function saveToGallery() {
       // On iOS/Android: open native share sheet (includes "Save Image" / "Save to Gallery")
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: 'Payment Confirmation' });
+          await navigator.share({ files: [file], text: getThankYouMessage() });
           showStatus('✅ Choose "Save Image" in the share panel to save to your gallery.', 'success');
         } catch (e) {
           if (e.name !== 'AbortError') {
