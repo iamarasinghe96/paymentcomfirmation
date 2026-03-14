@@ -588,12 +588,12 @@
 
 </div>
 
-<!-- Search by contact -->
+<!-- Search participants -->
 <div class="search-section">
-  <div class="panel-title">🔍 Search Participants by Contact Number</div>
+  <div class="panel-title">🔍 Search Participants</div>
   <div class="search-row">
-    <input type="tel" id="searchContact" placeholder="Enter contact number (e.g. 61412345678)" oninput="this.value=this.value.replace(/\s+/g,'').replace(/^\+/,'')">
-    <button class="btn-search" onclick="searchByContact()">Search</button>
+    <input type="text" id="searchContact" placeholder="Enter name or contact number">
+    <button class="btn-search" onclick="searchParticipants()">Search</button>
   </div>
   <div id="searchStatusMsg" style="display:none;" class="search-status"></div>
   <div class="search-results" id="searchResults"></div>
@@ -933,26 +933,34 @@ function showSearchStatus(msg, type) {
   el.style.display = 'block';
 }
 
-async function searchByContact() {
-  const raw = document.getElementById('searchContact').value.trim().replace(/\s+/g, '').replace(/^\+/, '');
-  if (!raw) { showSearchStatus('Please enter a contact number to search.', 'error'); return; }
+async function searchParticipants() {
+  const raw = document.getElementById('searchContact').value.trim();
+  if (!raw) { showSearchStatus('Please enter a name or contact number to search.', 'error'); return; }
 
   showSearchStatus('⏳ Searching…', 'info');
   document.getElementById('searchResults').innerHTML = '';
 
-  try {
-    const url = `${SHEETS_URL}?searchContact=${encodeURIComponent(raw)}`;
-    const res = await fetch(url);
-    const data = await res.json();
+  const normalizedContact = raw.replace(/\s+/g, '').replace(/^\+/, '');
 
-    if (!data || data.error) {
-      showSearchStatus('❌ ' + (data && data.error ? data.error : 'No results found.'), 'error');
-      return;
+  try {
+    const [contactRes, nameRes] = await Promise.allSettled([
+      fetch(`${SHEETS_URL}?searchContact=${encodeURIComponent(normalizedContact)}`).then(r => r.json()),
+      fetch(`${SHEETS_URL}?searchName=${encodeURIComponent(raw)}`).then(r => r.json())
+    ]);
+
+    let rows = [];
+    if (contactRes.status === 'fulfilled' && Array.isArray(contactRes.value)) {
+      rows = contactRes.value;
+    }
+    if (nameRes.status === 'fulfilled' && Array.isArray(nameRes.value)) {
+      nameRes.value.forEach(nr => {
+        const key = JSON.stringify(nr);
+        if (!rows.some(r => JSON.stringify(r) === key)) rows.push(nr);
+      });
     }
 
-    const rows = Array.isArray(data) ? data : (data.rows || []);
     if (rows.length === 0) {
-      showSearchStatus('⚠️ No participants found for that contact number.', 'info');
+      showSearchStatus('⚠️ No participants found.', 'info');
       return;
     }
 
