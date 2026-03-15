@@ -614,19 +614,39 @@ function showStatus(msg, type) {
 }
 
 function parseMessage() {
-  const text = document.getElementById('pasteArea').value;
-  if (!text.trim()) { showStatus('Please paste a message first.', 'error'); return; }
+  const rawText = document.getElementById('pasteArea').value;
+  if (!rawText.trim()) { showStatus('Please paste a message first.', 'error'); return; }
+
+  // ── Strip WhatsApp timestamp lines ─────────────────────────────────
+  // e.g. "[10:26 pm, 14/03/2026] Kasun Rangana Albury: Status: Paid"
+  const text = rawText.replace(/\[\d{1,2}:\d{2}\s*[ap]m,\s*[\d/]+\]\s*[^:\n]+:\s*/gi, ' ').trim();
 
   let parsedName = '', parsedAdults = 0, parsedKids12 = 0, parsedKidsU12 = 0;
 
-  // ── Receipt# → Remark ──────────────────────────────────────────────
-  // e.g. "Receipt#: N631365420050"
-  const receiptMatch = text.match(/Receipt#[:\s]*([A-Z0-9]+)/i);
-  if (receiptMatch) document.getElementById('f_remark').value = receiptMatch[1].trim();
+  // ── Word-to-number helper ──────────────────────────────────────────
+  function wordToNum(s) {
+    const map = { one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10 };
+    const lower = (s || '').toLowerCase();
+    return map[lower] !== undefined ? map[lower] : (parseInt(s) || 0);
+  }
+
+  // ── Reference / Receipt number → Remark ───────────────────────────
+  const remarkPatterns = [
+    /Reference\s+no[.:\s]+([A-Z0-9]+)/i,
+    /Receipt#[:\s]*([A-Z0-9]+)/i,
+    /Receipt\s+no[.:)?\s]*([A-Z0-9]+)/i,
+    /Receipt\s+number[:\s]*([A-Z0-9]+)/i,
+    /Lodgement\s+number[:\s]*([\d]+)/i,
+  ];
+  for (const pat of remarkPatterns) {
+    const m = text.match(pat);
+    if (m) { document.getElementById('f_remark').value = m[1].trim(); break; }
+  }
 
   // ── Amount ─────────────────────────────────────────────────────────
-  // e.g. "Amount: $75.00"
-  const amountMatch = text.match(/Amount[:\s]*\$?([\d,]+(?:\.\d{1,2})?)/i);
+  // "Amount: $75.00" or "Paid $100.00 to ..."
+  const amountMatch = text.match(/Amount[:\s]*\$?([\d,]+(?:\.\d{1,2})?)/i)
+                   || text.match(/Paid\s+\$?([\d,]+(?:\.\d{1,2})?)/i);
   let parsedAmount = 0;
   if (amountMatch) {
     parsedAmount = parseFloat(amountMatch[1].replace(/,/g, ''));
@@ -634,69 +654,127 @@ function parseMessage() {
   }
 
   // ── Date ───────────────────────────────────────────────────────────
-  // e.g. "Date: 13 Mar 2026 11:15 AM"
-  const dateMatch = text.match(/Date[:\s]*([\d]{1,2}\s+[A-Za-z]{3}\s+[\d]{4}(?:\s+[\d]{1,2}:[\d]{2}(?:\s*[AP]M)?)?)/i);
+  // "Date: 13 Mar 2026 11:15 AM", "When: Today, 14 Mar 2026", "Date: 14/03/2026"
+  const dateMatch = text.match(/(?:Date|When)[:\s]*(?:Today,?\s*)?([\d]{1,2}\s+[A-Za-z]{3}\s+[\d]{4}(?:\s+[\d]{1,2}:[\d]{2}(?:\s*[AP]M)?)?)/i)
+                 || text.match(/Date[:\s]*([\d]{1,2}\/[\d]{1,2}\/[\d]{4})/i);
   if (dateMatch) {
-    document.getElementById('f_date').value = dateMatch[1].trim();
+    let dateStr = dateMatch[1].trim();
+    // Convert DD/MM/YYYY → "14 Mar 2026"
+    const slashDate = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashDate) {
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      dateStr = `${parseInt(slashDate[1])} ${months[parseInt(slashDate[2])-1]} ${slashDate[3]}`;
+    }
+    document.getElementById('f_date').value = dateStr;
   } else {
-    // Fallback: now
     const now = new Date();
     document.getElementById('f_date').value = `${now.getDate()} ${now.toLocaleString('en',{month:'short'})} ${now.getFullYear()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
   }
 
-  // ── Description → Name + Pax ────────────────────────────────────────
-  // e.g. "Description: Ravi and family 3 adults"
-  // e.g. "Description: John Smith 2 adults 1 child"
-  const descMatch = text.match(/Description[:\s]*(.+)/i);
-  if (descMatch) {
-    const desc = descMatch[1].trim();
+  // ── Pax extractor (works on any text fragment) ─────────────────────
+  function extractPaxFromText(t) {
+    let a = 0, k12 = 0, ku12 = 0;
 
-    // Extract adults count
-    const aMatch = desc.match(/(\d+)\s*adult/i);
-    if (aMatch) parsedAdults = parseInt(aMatch[1]);
+    // "4 Adults. 1-12+. 2-12-" → N-12+ and N-12-
+    const dash12p = t.match(/(\d+)\s*-\s*12\+/i);
+    const dash12m = t.match(/(\d+)\s*-\s*12-/i);
+    if (dash12p) k12  = parseInt(dash12p[1]);
+    if (dash12m) ku12 = parseInt(dash12m[1]);
 
-    // Extract children 12+
-    const k12Match = desc.match(/(\d+)\s*(?:child(?:ren)?|kid)(?:s)?\s*(?:\(?\s*12\+\s*\)?|above|over\s*12|12\s*(?:and|&)?\s*above)/i);
-    if (k12Match) parsedKids12 = parseInt(k12Match[1]);
+    // Adults: "2 Adults", "Two Adults", "1 adult"
+    const aMatch = t.match(/(\w+)\s+adult/i);
+    if (aMatch) a = wordToNum(aMatch[1]);
 
-    // Extract children under 12
-    const ku12Match = desc.match(/(\d+)\s*(?:child(?:ren)?|kid)(?:s)?\s*(?:\(?\s*under\s*12\s*\)?|below\s*12|under)/i);
-    if (ku12Match) parsedKidsU12 = parseInt(ku12Match[1]);
+    // Kids 12+
+    const k12Match = t.match(/(\w+)\s*(?:child(?:ren)?|kid)s?\s*(?:\(?\s*12\+\s*\)?|above|over\s*12|12\s*(?:and|&)?\s*above)/i);
+    if (k12Match) k12 = wordToNum(k12Match[1]);
 
-    // Generic "X child/children" with no age qualifier → assume under 12
-    if (!k12Match && !ku12Match) {
-      const genKidMatch = desc.match(/(\d+)\s*(?:child(?:ren)?|kid)/i);
-      if (genKidMatch) parsedKidsU12 = parseInt(genKidMatch[1]);
+    // Kids under 12: "3 kids less than 12", "2 children under 12", etc.
+    const ku12Match = t.match(/(\w+)\s*(?:child(?:ren)?|kid)s?\s*(?:less\s*than\s*12|\(?\s*under\s*12\s*\)?|below\s*12)/i);
+    if (ku12Match) ku12 = wordToNum(ku12Match[1]);
+
+    // Generic kid (no age qualifier) → under 12
+    if (!k12Match && !ku12Match && !dash12p && !dash12m) {
+      const genKidMatch = t.match(/(\w+)\s*(?:child(?:ren)?|kid)s?/i);
+      if (genKidMatch) ku12 = wordToNum(genKidMatch[1]);
     }
 
-    // Extract name: strip known noise words and pax phrases
-    let nameRaw = desc
-      .replace(/\d+\s*adult[s]?/gi, '')
-      .replace(/\d+\s*(?:child(?:ren)?|kid)[s]?(?:\s*\(?\s*(?:under|12\+|above|over)[\s\d]*\)?)?/gi, '')
-      .replace(/\band\s+family\b/gi, '')
-      .replace(/\band\b/gi, '')
-      .replace(/\bfamily\b/gi, '')
-      .replace(/\bwife\b/gi, '')
-      .replace(/\bhusband\b/gi, '')
-      .replace(/\bpartner\b/gi, '')
-      .replace(/[,;&]+/g, ' ')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
-
-    // Capitalise first letter of each word
-    if (nameRaw.length > 1) {
-      parsedName = nameRaw.replace(/\b\w/g, c => c.toUpperCase());
-      document.getElementById('f_name').value = parsedName;
-    }
+    return { a, k12, ku12 };
   }
 
-  // ── Pax fallback: derive from amount if description gave nothing ────
+  // ── Extract relevant fields ────────────────────────────────────────
+  const descMatch = text.match(/Description[:\s]*(.+)/i);
+  const descText  = descMatch ? descMatch[1].trim() : '';
+
+  const refMatch = text.match(/Reference[:\s]*(.+)/i);
+  const refText  = refMatch ? refMatch[1].trim() : '';
+
+  // ANZ receipts use "Message:" for the payer's note
+  const msgMatch = text.match(/Message[:\s]*(.+)/i);
+  const msgText  = msgMatch ? msgMatch[1].trim() : '';
+
+  // ── Pax: try Description first, then scan all lines ───────────────
+  let pax = { a: 0, k12: 0, ku12: 0 };
+  if (descText) pax = extractPaxFromText(descText);
+
+  if (pax.a === 0 && pax.k12 === 0 && pax.ku12 === 0) {
+    // Scan every line for pax keywords (handles WhatsApp follow-up lines)
+    for (const line of text.split(/\n/)) {
+      if (/adult|kid|child/i.test(line) && !/Description|Reference|To:|BSB|Acc:|Amount|Date|When|Receipt|Status/i.test(line)) {
+        const p = extractPaxFromText(line);
+        if (p.a > 0 || p.k12 > 0 || p.ku12 > 0) { pax = p; break; }
+      }
+    }
+  }
+  parsedAdults  = pax.a;
+  parsedKids12  = pax.k12;
+  parsedKidsU12 = pax.ku12;
+
+  // ── Name: Message (ANZ) → Reference → Description ─────────────────
+  function looksLikeName(s) {
+    if (!s || s.length < 2 || s.length > 45) return false;
+    if (/association|asso|awsla|awsri|function|contribution|new year|payment|osko|receipt|BSB|BSE|transfer/i.test(s)) return false;
+    if (/^\d/.test(s.trim())) return false;
+    return true;
+  }
+
+  function cleanPaxFromName(s) {
+    return s
+      .replace(/(\w+)\s+adult[s]?/gi, (m, w) => /one|two|three|four|five|six|seven|eight|nine|ten|\d/i.test(w) ? '' : m)
+      .replace(/\d+\s*adult[s]?/gi, '')
+      .replace(/(\w+)\s*(?:child(?:ren)?|kid)s?(?:\s*(?:less\s*than\s*12|\(?\s*(?:under|12\+|above|over)[\s\d+\-]*\)?))?/gi,
+               (m, w) => /one|two|three|four|five|six|seven|eight|nine|ten|\d/i.test(w) ? '' : m)
+      .replace(/\d+\s*(?:child(?:ren)?|kid)s?(?:\s*(?:less\s*than\s*12|\(?\s*(?:under|12\+|above|over)[\s\d+\-]*\)?))?/gi, '')
+      .replace(/\band\s+family\b/gi, '').replace(/\bfamily\b/gi, '').replace(/\band\b/gi, '')
+      .replace(/\bwife\b|\bhusband\b|\bpartner\b/gi, '')
+      .replace(/[,;&+\-.]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  }
+
+  if (msgText && looksLikeName(msgText)) {
+    parsedName = msgText.replace(/\b\w/g, c => c.toUpperCase());
+  } else if (refText && looksLikeName(refText)) {
+    parsedName = refText
+      .replace(/\band\s+family\b/gi, '').replace(/\bfamily\b/gi, '')
+      .replace(/\s+/g, ' ').trim()
+      .replace(/\b\w/g, c => c.toUpperCase());
+  } else if (descText) {
+    const cleaned = cleanPaxFromName(descText);
+    if (cleaned.length > 1 && looksLikeName(cleaned))
+      parsedName = cleaned.replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  if (parsedName) document.getElementById('f_name').value = parsedName;
+
+  // ── Pax fallback: derive from amount if nothing found ──────────────
   if (parsedAdults === 0 && parsedKids12 === 0 && parsedKidsU12 === 0 && parsedAmount > 0) {
     calculatePaxFromAmount(Math.round(parsedAmount));
   } else {
     document.getElementById('f_adults').value  = parsedAdults;
     document.getElementById('f_kids12').value  = parsedKids12;
     document.getElementById('f_kidsU12').value = parsedKidsU12;
+    // Auto-set chicken to total pax count
+    const totalPax = parsedAdults + parsedKids12 + parsedKidsU12;
+    if (totalPax > 0) document.getElementById('f_meal_chicken').value = totalPax;
   }
 
   // ── Status default ─────────────────────────────────────────────────
@@ -734,32 +812,30 @@ async function lookupContactByRemark(remark) {
 
 function calculatePaxFromAmount(amount) {
   // Pricing: adult=$25, child12+=$25, childU12=$12
-  // Greedy: assume all adults first (most common), then try combos
   if (amount <= 0) return;
 
-  // Try pure adults
+  let adults = 0, kids12 = 0, kidsU12 = 0;
+
   if (amount % 25 === 0) {
-    document.getElementById('f_adults').value  = amount / 25;
-    document.getElementById('f_kids12').value  = 0;
-    document.getElementById('f_kidsU12').value = 0;
-    updatePax(); return;
-  }
-
-  // Try adults + under-12 children (remainder divisible by 12)
-  for (let a = Math.floor(amount / 25); a >= 0; a--) {
-    const rem = amount - a * 25;
-    if (rem > 0 && rem % 12 === 0) {
-      document.getElementById('f_adults').value  = a;
-      document.getElementById('f_kids12').value  = 0;
-      document.getElementById('f_kidsU12').value = rem / 12;
-      updatePax(); return;
+    adults = amount / 25;
+  } else {
+    // Try adults + under-12 children (remainder divisible by 12)
+    let found = false;
+    for (let a = Math.floor(amount / 25); a >= 0; a--) {
+      const rem = amount - a * 25;
+      if (rem > 0 && rem % 12 === 0) {
+        adults = a; kidsU12 = rem / 12; found = true; break;
+      }
     }
+    if (!found) adults = Math.round(amount / 25);
   }
 
-  // Fallback: best guess adults
-  document.getElementById('f_adults').value  = Math.round(amount / 25);
-  document.getElementById('f_kids12').value  = 0;
-  document.getElementById('f_kidsU12').value = 0;
+  document.getElementById('f_adults').value  = adults;
+  document.getElementById('f_kids12').value  = kids12;
+  document.getElementById('f_kidsU12').value = kidsU12;
+  // Auto-set chicken to total pax count
+  const totalPax = adults + kids12 + kidsU12;
+  if (totalPax > 0) document.getElementById('f_meal_chicken').value = totalPax;
   updatePax();
 }
 
